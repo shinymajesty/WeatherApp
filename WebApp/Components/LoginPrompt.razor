@@ -1,0 +1,46 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+
+<div class="login-overlay">
+    <div class="login-prompt">
+        <h3>Please Log In or Register</h3>
+        <div class="mt-4">
+            <button class="btn btn-primary me-2" @onclick="GoToLogin">Login</button>
+            <button class="btn btn-secondary" @onclick="GoToRegister">Register</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .login-prompt {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+
+@code {
+    private void GoToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private void GoToRegister()
+    {
+        NavigationManager.NavigateTo("/register");
+    }
+}

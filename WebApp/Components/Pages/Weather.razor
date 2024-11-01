@@ -1,0 +1,140 @@
+﻿@page "/weather"
+@using Microsoft.AspNetCore.Authorization
+@using Radzen.Blazor
+@using Radzen
+@inject NavigationManager NavigationManager
+@inject LocationState LocationState
+@using WeatherApp.Classes
+@rendermode InteractiveServer
+@attribute [Authorize]
+@implements IDisposable
+
+<h3>
+    @if (LocationState.CurrentLocation != null)
+    {
+        <span>Weather in @weatherData?.Location?.name</span>
+    }
+    else
+    {
+        <span>No location selected. <a href="/search">Search for a location</a></span>
+    }
+</h3>
+
+@if (LocationState.CurrentLocation != null && weatherData != null)
+{
+    @foreach (var forecast in weatherData.Forecast.forecastday)
+    {
+        <div class="mb-4">
+            <h4>@forecast.date: @forecast.day.condition.text</h4>
+            <div class="container-fluid overflow-x-auto">
+                <RadzenChart Style="height: 300px; width: 100%">
+                    <RadzenLineSeries Data="@GetHourlyData(forecast)"
+                                      CategoryProperty="TimeLabel"
+                                      Title="Actual Temperature"
+                                      ValueProperty="Temperature"
+                                      LineType="LineType.Solid"
+                                      Smooth="true"
+                                      Stroke="#ff6d41" />
+                    <RadzenLineSeries Data="@GetHourlyData(forecast)"
+                                      CategoryProperty="TimeLabel"
+                                      Title="Feels Like"
+                                      ValueProperty="FeelsLike"
+                                      LineType="LineType.Solid"
+                                      Smooth="true"
+                                      Stroke="#2d98ff" />
+                    <RadzenCategoryAxis Padding="20"
+                                        Step="2" />
+                    <RadzenValueAxis>
+                        <RadzenGridLines Visible="true" />
+                        <RadzenAxisTitle Text="Temperature (°C)" />
+                    </RadzenValueAxis>
+                    <RadzenLegend Position="LegendPosition.Bottom" Visible="true" />
+                </RadzenChart>
+            </div>
+
+            <div class="container-fluid overflow-x-auto">
+                <RadzenChart Style="height: 200px; width: 100%">
+                    <RadzenColumnSeries Data="@GetHourlyData(forecast)"
+                                        CategoryProperty="TimeLabel"
+                                        Title="Chance of Rain %"
+                                        ValueProperty="RainChance"
+                                        Fill="#2196f3" />
+                    <RadzenCategoryAxis Step="2" />
+                    <RadzenValueAxis Max="100">
+                        <RadzenGridLines Visible="true" />
+                        <RadzenAxisTitle Text="Probability (%)" />
+                    </RadzenValueAxis>
+                </RadzenChart>
+            </div>
+
+            <div class="container-fluid overflow-x-auto">
+                <RadzenChart Style="height: 200px; width: 100%">
+                    <RadzenAreaSeries Data="@GetHourlyData(forecast)"
+                                      CategoryProperty="TimeLabel"
+                                      Title="Wind Speed"
+                                      ValueProperty="WindSpeed"
+                                      Fill="rgba(51, 122, 183, 0.5)" />
+                    <RadzenCategoryAxis Step="2" />
+                    <RadzenValueAxis>
+                        <RadzenGridLines Visible="true" />
+                        <RadzenAxisTitle Text="Wind Speed (km/h)" />
+                    </RadzenValueAxis>
+                </RadzenChart>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private WeatherData? weatherData;
+    private bool isLoading = false;
+
+    private class HourlyData
+    {
+        public string TimeLabel { get; set; }
+        public double Temperature { get; set; }
+        public double FeelsLike { get; set; }
+        public int RainChance { get; set; }
+        public double WindSpeed { get; set; }
+    }
+
+    private List<HourlyData> GetHourlyData(Forecastday forecast)
+    {
+        return forecast.hour.Select(h => new HourlyData
+            {
+                TimeLabel = DateTime.Parse(h.time).ToString("HH:mm"),
+                Temperature = h.temp_c,
+                FeelsLike = h.feelslike_c,
+                RainChance = h.chance_of_rain,
+                WindSpeed = h.wind_kph
+            }).ToList();
+    }
+
+    protected override void OnInitialized()
+    {
+        LocationState.OnLocationChange += StateHasChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (LocationState.CurrentLocation != null)
+        {
+            isLoading = true;
+            try
+            {
+                weatherData = await WeatherDataFetcher.FetchWeatherData(
+                    LocationState.CurrentLocation.Id,
+                    5);
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        LocationState.OnLocationChange -= StateHasChanged;
+    }
+}

@@ -1,0 +1,94 @@
+﻿@page "/"
+@page "/search"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using WeatherApp.Classes
+@using System.Net
+@inject NavigationManager NavigationManager
+@inject LocationState LocationState
+@attribute [Authorize]
+
+<h3>Search for your location</h3>
+
+<div class="input-group mb-3">
+    <input @bind="searchQuery"
+           @bind:event="oninput"
+           @onkeydown="HandleKeyDown"
+           placeholder="Enter location..."
+           class="form-control" />
+</div>
+
+@if (isLoading)
+{
+    <div class="alert alert-info">Loading...</div>
+}
+
+@if (locationOptions != null && isSearchSubmitted)
+{
+    <h4>Search Results</h4>
+    if (locationOptions.Count > 0)
+    {
+        <ul class="list-group">
+            @foreach (var option in locationOptions)
+            {
+                <li class="list-group-item list-group-item-action" @onclick="() => SelectLocation(option)">
+                    @WebUtility.HtmlDecode(option.Name), @WebUtility.HtmlDecode(option.Region), @WebUtility.HtmlDecode(option.Country)
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        <div class="alert alert-warning">No results found.</div>
+    }
+}
+
+@code {
+    private string searchQuery = string.Empty;
+    private bool isLoading = false;
+    private List<LocationOption>? locationOptions;
+    private bool isSearchSubmitted = false;
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await PerformSearch();
+    }
+
+    private async Task PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            locationOptions = new List<LocationOption>();
+            isSearchSubmitted = false;
+            return;
+        }
+
+        isLoading = true;
+        isSearchSubmitted = true;
+
+        try
+        {
+            locationOptions = await LocationOptionFetcher.FetchLocationOptions(searchQuery);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching location options: {ex.Message}");
+            locationOptions = new List<LocationOption>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectLocation(LocationOption location)
+    {
+        LocationState.CurrentLocation = location;
+        NavigationManager.NavigateTo("/weather");
+    }
+
+    private void ClearSelection()
+    {
+        LocationState.CurrentLocation = null;
+    }
+}
